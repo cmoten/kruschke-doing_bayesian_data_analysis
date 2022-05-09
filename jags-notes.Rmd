@@ -1,0 +1,185 @@
+---
+title: "JAGS Notes"
+output: html_notebook
+---
+
+## Libraries
+```{r libraries, message=FALSE}
+library(rjags)
+library(runjags)
+source("2e/DBDA2E-utilities.R")
+library(bayesplot)
+library(ggplot2)
+library(bayestestR)
+```
+
+
+## Model Background
+
+These notes cover how to implement a bayesian model in the ``rjags`` package. The examples for these notes come from chapter 8 of [John Kruschke's book](https://sites.google.com/site/doingbayesiandataanalysis/). 
+
+### Bayes' Formula
+As a reminder we will be using ``JAGS`` to solve a model of the form
+
+$$
+p(\theta | D) = \frac{p(D|\theta)p(\theta)}{p(D)}
+$$
+where $p(\theta|D)$ is the posterior distribution, $p(D|\theta)$ is the likelihood distribution, $p(\theta)$ is the prior distribution, and $p(D)$ is a normalizing constant.
+
+In the end this formula can be simplified to $$p(\theta|D) \propto p(D|\theta)p(\theta)$$.
+
+### Fair Coin
+For this problem, we will determine the bias of a coin based on collected coin flip data. To accomplish this in ``rjags``, you will need to:
+
+1. Load the data
+2. Generate the model
+3. Initialize the Markov chains
+4. Generate the Markov chains
+5. Inspect the Markov chains
+
+#### Load the data
+
+```{r coin-load-data}
+data <- read.csv("2e/z15N50.csv")
+y <- data$y
+Ntotal <- length(y)
+dataList <- list(
+  "y" = y,
+  "Ntotal" = Ntotal
+)
+```
+
+
+#### Generate the model
+
+```{r coin-generate-model}
+modelString <- "
+  model {
+    for(i in 1:Ntotal) {
+      y[i] ~ dbern(theta)
+    }
+    theta ~ dbeta(1, 1)
+  }
+"
+
+#writeLines(modelString, con = "jags-models/coin-model.txt")
+```
+
+
+#### Initialize the chains
+
+``JAGS`` can initalize these values by default, but for large and complex models it is more beneficial to provide a reasonable starting point. For this example, we will use a function that takes a randomized sample of the data and creates a starting point that is approximately equal to the maximum likelihood estimate (MLE).
+
+```{r coin-model-init}
+
+initsList <- function() {
+  resampledY <- sample(y, replace = TRUE)
+  thetaInit = sum(resampledY) / length(resampledY)
+  thetaInit = 0.001 + 0.998*thetaInit
+  return (list(theta=thetaInit))
+}
+```
+
+
+#### Generate the chains
+
+```{r coin-jags-model}
+jagsModel <- jags.model(
+  file = "jags-models/coin-model.txt",
+  data = dataList,
+  inits = initsList(),
+  n.chains = 3, #default is 1
+  n.adapt = 500 # default is 1000
+)
+```
+##### Burn-in the model
+
+```{r coin-model-burnin}
+update(jagsModel, n.iter = 500)
+```
+##### Generate Samples
+
+```{r coin-generate-samples}
+codaSamples <- coda.samples(
+  jagsModel,
+  variable.names = c("theta"),
+  n.iter = 3334
+)
+
+```
+
+
+#### Inspect the chains
+```{r coin-model-diagnosis}
+plot(codaSamples)
+
+```
+
+##### View the density plot
+```{r coin-model-density-plot}
+plotPost(codaSamples[, "theta"], main = "Theta", xlab=bquote(theta),
+         cenTend = "median", compVal = 0.5, ROPE = c(.45, .55),
+         credMass = .90)
+
+```
+
+### Multiple Coins
+
+#### Data
+```{r multi-coin-data}
+data <- read.csv("2e/z6N8z2N7.csv")
+y <- data$y
+s <- as.numeric(data$s)
+Ntotal <- length(y)
+Nsubj <- length(s)
+dataList <- list(
+  "y" = y,
+  "s" = s,
+  "Ntotal" = Ntotal,
+  "Nsubj" = Nsubj
+)
+
+```
+
+#### Model
+```{r multi-coin-model}
+modelString <- "
+  model {
+    for(i in 1:Ntotal) {
+      y[i] ~ dbern(theta[s])
+    }
+    for(s in 1:Nsubj){
+    theta[s] ~ dbeta(2, 2)
+    }
+  }
+"
+
+#writeLines(modelString, con = "jags-models/two-coins-model.txt")
+
+```
+
+#### Run JAGS
+```{r multi-coin-jags}
+source("2e/Jags-Ydich-XnomSsubj-MbernBeta.R")
+#Generate the chain
+mcmcCoda <- genMCMC(data = data, numSavedSteps = 10000)
+```
+
+#### Diagnostics
+```{r multi-coin-diagnostics}
+plot(mcmcCoda)
+
+```
+
+#### Summary
+```{r multi-coin-summary}
+smryMCMC(mcmcCoda, compVal = NULL, compValDiff = 0.0)
+
+```
+
+#### Plot Posterior
+```{r multi-coin-posterior}
+plotMCMC(mcmcCoda, data = data, compVal = NULL, compValDiff = 0.0)
+```
+
+
