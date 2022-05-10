@@ -2,7 +2,7 @@
 # Accompanies the book:
 #   Kruschke, J. K. (2014). Doing Bayesian Data Analysis: 
 #   A Tutorial with R, JAGS, and Stan. 2nd Edition. Academic Press / Elsevier.
-source("DBDA2E-utilities.R")
+source("2e/DBDA2E-utilities.R")
 #===============================================================================
 
 genMCMC = function( data , zName="z" , NName="N" , sName="s" , cName="c" ,
@@ -29,7 +29,7 @@ genMCMC = function( data , zName="z" , NName="N" , sName="s" , cName="c" ,
   dataList = list(
     z = z ,
     N = N ,
-    c = as.numeric(c) , # c in JAGS is numeric, in R is possibly factor
+    c = as.numeric(as.factor(c)) , # c in JAGS is numeric, in R is possibly factor
     Nsubj = Nsubj ,
     Ncat = Ncat
   )
@@ -224,7 +224,7 @@ plotMCMC = function( codaSamples ,
   par( mar=c(3.5,1,3.5,1) , mgp=c(2.0,0.7,0) )
   #xLim = range( mcmcMat[,parNames] )
   xLim=quantile(mcmcMat[,parNames],probs=c(0.000,0.995))
-  mainLab = c(levels(myData[[cName]]),"Overall")
+  mainLab = c(levels(as.factor(data[[cName]])),"Overall")
   mainIdx = 0
   for ( parName in parNames ) {
     mainIdx = mainIdx+1
@@ -247,7 +247,7 @@ plotMCMC = function( codaSamples ,
   par( mar=c(3.5,1,3.5,1) , mgp=c(2.0,0.7,0) )
   #xLim = range( mcmcMat[,parNames] )
   xLim=quantile(mcmcMat[,parNames],probs=c(0.001,0.999))
-  mainLab = c(levels(myData[[cName]]),"Overall")
+  mainLab = c(levels(as.factor(data[[cName]])),"Overall")
   mainIdx = 0
   for ( parName in parNames ) {
     mainIdx = mainIdx+1
@@ -267,7 +267,7 @@ plotMCMC = function( codaSamples ,
       Nidx = length(diffCVec)
       temp=NULL
       for ( i in 1:Nidx ) {
-        temp = c( temp , which(levels(myData[[cName]])==diffCVec[i]) )
+        temp = c( temp , which(levels(as.factor(data[[cName]]))==diffCVec[i]) )
       }
       diffCVec = temp
       openGraph(width=2.5*Nidx,height=2.0*Nidx)
@@ -285,8 +285,8 @@ plotMCMC = function( codaSamples ,
             ptIdx = round(seq(1,chainLength,length=nToPlot))
             plot ( mcmcMat[ptIdx,parName2] , mcmcMat[ptIdx,parName1] , 
                    cex.main=1.25 , cex.lab=1.25 , 
-                   xlab=levels(myData[[cName]])[diffCVec[t2Idx]] , 
-                   ylab=levels(myData[[cName]])[diffCVec[t1Idx]] , 
+                   xlab=levels(as.factor(data[[cName]]))[diffCVec[t2Idx]] , 
+                   ylab=levels(as.factor(data[[cName]]))[diffCVec[t1Idx]] , 
                    col="skyblue" )
             abline(0,1,lty="dotted")
           } else if ( t1Idx == t2Idx ) {
@@ -295,7 +295,7 @@ plotMCMC = function( codaSamples ,
                                  compVal=compVal , ROPE=rope , 
                                  cex.main=1.25 , cex.lab=1.25 , 
                                  xlab=bquote(.(parName1)) ,
-                                 main=levels(myData[[cName]])[diffCVec[t1Idx]] ,  
+                                 main=levels(as.factor(data[[cName]]))[diffCVec[t1Idx]] ,  
                                  xlim=xLim )
           } else if ( t1Idx < t2Idx ) {
             par( mar=c(3,1.5,3,1.5) , mgp=c(2.0,0.7,0) , pty="m" )
@@ -304,9 +304,9 @@ plotMCMC = function( codaSamples ,
                                  cex.main=1.25 , cex.lab=1.25 , 
                                  xlab=bquote("Difference of "*omega*"'s") , 
                                  main=paste( 
-                                   levels(myData[[cName]])[diffCVec[t1Idx]] ,
+                                   levels(as.factor(data[[cName]]))[diffCVec[t1Idx]] ,
                                    "-",
-                                   levels(myData[[cName]])[diffCVec[t2Idx]] ) )
+                                   levels(as.factor(data[[cName]]))[diffCVec[t2Idx]] ) )
           }
         }
       }
@@ -323,7 +323,7 @@ plotMCMC = function( codaSamples ,
       Nidx = length(diffSVec)
       temp=NULL
       for ( i in 1:Nidx ) {
-        temp = c( temp , which(myData[[sName]]==diffSVec[i]) )
+        temp = c( temp , which(data[[sName]]==diffSVec[i]) )
       }
       diffSVec = temp
       openGraph(width=2.5*Nidx,height=2.0*Nidx)
